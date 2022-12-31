@@ -15,6 +15,6 @@ COPY data/training_and_product_data.zip data/training_and_product_data.zip
 RUN cd data/ && unzip training_and_product_data.zip && rm training_and_product_data.zip
 
 WORKDIR /home/root
-COPY src/*.py src/
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir --upgrade -r requirements.txt
+COPY src/*.py src/
