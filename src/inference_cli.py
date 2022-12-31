@@ -9,8 +9,8 @@ def main(parsed_args: argparse.Namespace):
     run_inference(**vars(parsed_args))
 
 def parse_args(args: Optional[List[str]] = None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("queries", type=str, help="Comma-separated list of queries.", required=True)
+    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    parser.add_argument("queries", type=str, help="Comma-separated list of queries.")
     parser.add_argument("--product_data_path", type=str, help="Path to product catalogue csv file.")
     parser.add_argument("--model_path", type=str, help="Path to saved model.")
     args = parser.parse_args()
