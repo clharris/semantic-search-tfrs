@@ -90,7 +90,7 @@ def train_model(train_data_path: str = "data/train-v0.2_us.csv",
     ])
 
     # Define your objectives. Can remove metrics to decrease training time
-    tfrs.tasks.Retrieval(metrics=tfrs.metrics.FactorizedTopK(
+    task = tfrs.tasks.Retrieval(metrics=tfrs.metrics.FactorizedTopK(
         products.batch(128).map(products_model),
         ks=(1, 5, 10)
     ))
