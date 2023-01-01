@@ -2,10 +2,9 @@ import tensorflow as tf
 import tensorflow_recommenders as tfrs
 import keras.backend as K
 import pandas as pd
-import logging
+import numpy as np
 from typing import Dict, Text
 
-logger = logging.getLogger(__name__)
 
 class QueryProductsModel(tfrs.Model):
     # We derive from a custom base class to help reduce boilerplate. Under the hood,
@@ -33,14 +32,15 @@ class QueryProductsModel(tfrs.Model):
 
         return self.task(query_embeddings, product_embeddings)
 
-# interaction_path, candidate_path, user_id_feature, user_model_class, 
-def train_model(train_data_path = "data/train-v0.2_us.csv",
-                product_data_path = "data/product_catalogue-v0.2_us.csv",
-                max_tokens = 5000,
-                embedding_dim = 64,
-                epochs = 15,
-                model_output_path = "models/index"):
 
+# interaction_path, candidate_path, user_id_feature, user_model_class,
+def train_model(train_data_path: str = "data/train-v0.2_us.csv",
+                product_data_path: str = "data/product_catalogue-v0.2_us.csv",
+                max_tokens: int = 5000,
+                embedding_dim: int = 64,
+                epochs: int = 15,
+                model_output_path: str = "models/index"):
+    print(f"Loading data from {train_data_path} and {product_data_path}")
     train_data = pd.read_csv(train_data_path)
     product_data = pd.read_csv(product_data_path)
     product_data = product_data[product_data["product_title"].notnull()]
@@ -50,7 +50,7 @@ def train_model(train_data_path = "data/train-v0.2_us.csv",
     train_data = train_data.merge(product_data, left_on=['query_locale', 'product_id'],
                                   right_on=['product_locale', 'product_id'])[features]
 
-    ## Would be better to give relative weightings between the labels exact, substitute, and complement
+    # Would be better to give relative weightings between the labels exact, substitute, and complement
     positive_labels = train_data[train_data["esci_label"] != "irrelevant"]
     train_ds = tf.data.Dataset.from_tensor_slices(dict(positive_labels))
 
@@ -73,6 +73,7 @@ def train_model(train_data_path = "data/train-v0.2_us.csv",
                                                                  output_mode='int',
                                                                  output_sequence_length=5
                                                                  )
+    print(f"Adapting text vectorization. max_tokens={max_tokens}")
     text_vectorization_layer.adapt(queries.batch(64))
     text_vectorization_layer.adapt(product_ds.map(lambda x: x["product_title"]).batch(64))
 
@@ -88,7 +89,7 @@ def train_model(train_data_path = "data/train-v0.2_us.csv",
         tf.keras.layers.Lambda(lambda x: K.mean(x, axis=1), output_shape=(embedding_dim,))
     ])
 
-    # Define your objectives.
+    # Define your objectives. Can remove metrics to decrease training time
     task = tfrs.tasks.Retrieval(metrics=tfrs.metrics.FactorizedTopK(
         products.batch(128).map(products_model),
         ks=(1, 5, 10)
@@ -96,15 +97,20 @@ def train_model(train_data_path = "data/train-v0.2_us.csv",
 
     # Create a retrieval model.
     model = QueryProductsModel(query_model, products_model, task)
+    print(f"Compiling and training model for {epochs} epochs")
     model.compile(optimizer=tf.keras.optimizers.Adagrad(0.5))
     model.fit(train_ds.batch(4096), epochs=epochs)
 
     # Use brute-force search to set up retrieval using the trained representations.
     index = tfrs.layers.factorized_top_k.BruteForce(model.query_model)
+    print("Building index...")
     index.index_from_dataset(
         products.batch(100).map(lambda title: (title, model.products_model(title))))
 
+    # Workaround to get model to save correctly by calling on dummy value
+    _ = index(np.array(["42"]))
+
+    print("Saving index...")
     tf.saved_model.save(
         index,
         model_output_path)
-
