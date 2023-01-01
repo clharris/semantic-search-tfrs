@@ -89,8 +89,11 @@ def train_model(train_data_path: str = "data/train-v0.2_us.csv",
         tf.keras.layers.Lambda(lambda x: K.mean(x, axis=1), output_shape=(embedding_dim,))
     ])
 
-    # Define your objectives.
-    task = tfrs.tasks.Retrieval()
+    # Define your objectives. Can remove metrics to decrease training time
+    tfrs.tasks.Retrieval(metrics=tfrs.metrics.FactorizedTopK(
+        products.batch(128).map(products_model),
+        ks=(1, 5, 10)
+    ))
 
     # Create a retrieval model.
     model = QueryProductsModel(query_model, products_model, task)
