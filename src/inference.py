@@ -10,18 +10,18 @@ def query_index(query_string, index, product_data):
     score_dict = dict(zip(top_10, scores_10))
     df = product_data[product_data["product_title"].isin(top_10)]
     df["score"] = df["product_title"].map(lambda title: score_dict[title])
-    print(df.sort_values(["score"], inplace=True, ascending=False))
+    print(f"Top results for {query_string}")
+    df.sort_values(["score"], inplace=True, ascending=False)
+    print(df)
+
 
 def run_inference(queries,
-                  output_path = "model/index",
-                  product_data_path = "data/product_catalogue-v0.2.csv"):
-
+                  output_path="models/index",
+                  product_data_path="data/product_catalogue-v0.2_us.csv"):
     index = tf.saved_model.load(output_path)
     product_data = pd.read_csv(product_data_path)
 
-    # queries = ["airpods", "wine", "shoes", "tree"]
     queries = queries.split(",")
 
     for query in queries:
         query_index(query, index, product_data)
-
